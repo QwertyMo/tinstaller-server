@@ -2,6 +2,7 @@ package ru.qwertymo.tinstaller_server.utils
 
 import org.springframework.web.multipart.MultipartFile
 import java.io.File
+import java.io.InputStream
 import java.util.*
 
 class FileUtils {
@@ -16,6 +17,14 @@ class FileUtils {
             return filename
         }
 
+        fun addFile(repo: String, file: InputStream, ext: String):String{
+            File("$dir/apps/$repo").let { if(!it.exists())it.mkdirs() }
+            val filename = "${UUID.randomUUID()}.$ext"
+            val output = File("$dir/apps/$repo/$filename")
+            file.copyTo(output.outputStream())
+            return filename
+        }
+
         fun removeFile(repo: String, name: String):Boolean{
             val file = File("$dir/apps/$repo/$name")
             return file.delete()
@@ -24,5 +33,7 @@ class FileUtils {
         fun getFile(repo:String, name:String):File{
             return File("$dir/apps/$repo/$name")
         }
+
+
     }
 }

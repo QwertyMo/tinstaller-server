@@ -2,7 +2,7 @@ package ru.qwertymo.tinstaller_server.routing.app
 
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
-import org.springframework.core.io.FileSystemResource
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
@@ -12,20 +12,31 @@ import ru.qwertymo.tinstaller_server.model.request.AppRequest
 import ru.qwertymo.tinstaller_server.model.response.AppResponse
 import ru.qwertymo.tinstaller_server.model.response.RepoResponse
 import ru.qwertymo.tinstaller_server.service.AppService
+import ru.qwertymo.tinstaller_server.service.AuthService
 import ru.qwertymo.tinstaller_server.service.RepoService
 import ru.qwertymo.tinstaller_server.utils.FileUtils
 
 @RestController
 class AppRouting(
     var appService: AppService,
-    var repoService: RepoService
+    var repoService: RepoService,
+    var authService: AuthService
 ) {
 
     @GetMapping("/repo/{name}")
-    fun getRepository(@PathVariable name: String, request: HttpServletRequest): RepoResponse {
-        val addr = request.requestURL.split("/repo/")[0]
+    fun getRepository(
+        @PathVariable name: String,
+        request: HttpServletRequest
+    ): RepoResponse {
+        val address = request.requestURL.split("/repo/")[0]
         return RepoResponse(apps = repoService.getAllApps(name).map {
-            AppResponse(it.title, it.description, "$addr/repo/${name}/download/${it.url}", it.appReview, it.category)
+            AppResponse(
+                it.title,
+                it.description,
+                "$address/repo/${name}/download/${it.url}",
+                it.appReview,
+                it.category
+            )
         })
     }
 
@@ -34,9 +45,12 @@ class AppRouting(
         consumes = ["multipart/form-data"]
     )
     fun addApp(
+        @RequestHeader("Authorization") bearer: String,
         @ModelAttribute app: AppRequest,
         @PathVariable name: String
     ): ResponseEntity<String> {
+        if (authService.getUserByToken(bearer.substring(7, bearer.length))==null)
+            return ResponseEntity(HttpStatus.UNAUTHORIZED)
         if (app.file == null) return ResponseEntity("No file", HttpStatus.BAD_REQUEST)
         if (app.category == null) return ResponseEntity("No category", HttpStatus.BAD_REQUEST)
         if (appService.isAppExists(name, app.title))
@@ -61,9 +75,12 @@ class AppRouting(
         consumes = ["multipart/form-data"]
     )
     fun removeApp(
+        @RequestHeader("Authorization") bearer: String,
         @ModelAttribute app: AppRequest,
         @PathVariable name: String
     ): ResponseEntity<String> {
+        if (authService.getUserByToken(bearer.substring(7, bearer.length))==null)
+            return ResponseEntity(HttpStatus.UNAUTHORIZED)
         val a = appService.getApp(app.title, name) ?: return ResponseEntity(
             "This app doesn't exist",
             HttpStatus.BAD_REQUEST
@@ -81,26 +98,33 @@ class AppRouting(
         @PathVariable name: String,
         @PathVariable file: String,
         response: HttpServletResponse
-    ): FileSystemResource {
-        return FileSystemResource(FileUtils.getFile(name, file))
+    ): ResponseEntity<*> {
+        val f = FileUtils.getFile(name, file)
+        return ResponseEntity.ok()
+            .contentType(MediaType.APPLICATION_OCTET_STREAM)
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + f.name + "\"")
+            .body(f.readBytes())
     }
 
     @PutMapping(
-        value = ["repo/{name}/{app_name}"],
+        value = ["repo/{repo}/{appName}"],
         consumes = ["multipart/form-data"]
     )
     fun updateApp(
+        @RequestHeader("Authorization") bearer: String,
         @ModelAttribute app: AppRequest,
-        @PathVariable app_name: String,
-        @PathVariable name: String
+        @PathVariable appName: String,
+        @PathVariable repo: String
     ): ResponseEntity<String> {
+        if (authService.getUserByToken(bearer.substring(7, bearer.length))==null)
+            return ResponseEntity(HttpStatus.UNAUTHORIZED)
         val a =
-            appService.getApp(app_name, name) ?: return ResponseEntity("This app doesn't exist", HttpStatus.BAD_REQUEST)
-        if (appService.isAppExists(app.title, name)) return ResponseEntity(
+            appService.getApp(appName, repo) ?: return ResponseEntity("This app doesn't exist", HttpStatus.BAD_REQUEST)
+        if (appService.isAppExists(app.title, repo)) return ResponseEntity(
             "Edited app name already exists",
             HttpStatus.CONFLICT
         )
-        appService.updateApp(app_name, app, name)
+        appService.updateApp(appName, app, repo)
         return ResponseEntity(HttpStatus.OK)
     }
 }

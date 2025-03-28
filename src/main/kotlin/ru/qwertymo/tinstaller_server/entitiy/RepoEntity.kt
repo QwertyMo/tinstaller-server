@@ -2,7 +2,6 @@ package ru.qwertymo.tinstaller_server.entitiy
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import jakarta.persistence.*
-import org.hibernate.annotations.GenericGenerator
 
 @Entity
 @Table(name = "REPO")

@@ -7,6 +7,6 @@ data class AppResponse(
     var description: String,
     var url: String,
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    var app_review: String?,
+    var appReview: String?,
     var category: String
 )

@@ -5,5 +5,4 @@ import org.springframework.stereotype.Repository
 import ru.qwertymo.tinstaller_server.entitiy.RepoEntity
 
 @Repository
-interface RepoRepository : JpaRepository <RepoEntity, Int> {
-}
+interface RepoRepository : JpaRepository <RepoEntity, Int>

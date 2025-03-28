@@ -1,9 +1,6 @@
 package ru.qwertymo.tinstaller_server.entitiy
 
-import com.fasterxml.jackson.annotation.JsonIgnore
-import com.fasterxml.jackson.annotation.JsonInclude
 import jakarta.persistence.*
-import org.hibernate.annotations.GenericGenerator
 
 
 @Entity
@@ -17,6 +14,7 @@ data class AppEntity(
     @Column(name = "TITLE")
     var title: String = "",
 
+    @Lob
     @Column(name = "DESCRIPTION")
     var description: String = "",
 
