@@ -40,6 +40,16 @@ class AppRouting(
         })
     }
 
+    @GetMapping("/repo")
+    fun getAllRepository(
+        @RequestHeader("Authorization") bearer: String,
+        request: HttpServletRequest
+    ): ResponseEntity<*> {
+        if (authService.getUserByToken(bearer.substring(7, bearer.length))==null)
+            return ResponseEntity("",HttpStatus.UNAUTHORIZED)
+        return ResponseEntity(repoService.getAll().map { it.name }, HttpStatus.OK)
+    }
+
     @PostMapping(
         value = ["repo/{name}"],
         consumes = ["multipart/form-data"]
@@ -127,4 +137,6 @@ class AppRouting(
         appService.updateApp(appName, app, repo)
         return ResponseEntity(HttpStatus.OK)
     }
+
+
 }
