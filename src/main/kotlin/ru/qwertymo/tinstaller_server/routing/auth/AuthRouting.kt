@@ -1,6 +1,7 @@
 package ru.qwertymo.tinstaller_server.routing.auth
 
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import ru.qwertymo.tinstaller_server.model.request.UserRequest
@@ -36,4 +37,16 @@ class AuthRouting(
         authService.changePassword(usr, user.password)
         return ResponseEntity(HttpStatus.OK)
     }
+
+    @GetMapping(
+        value = ["/auth/me"])
+    fun getMe(
+        @RequestHeader("Authorization") bearer: String,
+    ): ResponseEntity<*> {
+        val user = authService.getUserByToken(bearer.substring(7, bearer.length))
+        if (user == null)
+            return ResponseEntity<String>(HttpStatus.UNAUTHORIZED)
+        return ResponseEntity(user, HttpStatus.OK)
+    }
+
 }
