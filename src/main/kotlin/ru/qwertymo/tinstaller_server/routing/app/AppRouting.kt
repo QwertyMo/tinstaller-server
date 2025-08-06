@@ -63,13 +63,14 @@ class AppRouting(
             return ResponseEntity(HttpStatus.UNAUTHORIZED)
         if (app.file == null) return ResponseEntity("No file", HttpStatus.BAD_REQUEST)
         if (app.category == null) return ResponseEntity("No category", HttpStatus.BAD_REQUEST)
-        if (appService.isAppExists(name, app.title))
+        if(app.title == null) return ResponseEntity("No app name", HttpStatus.BAD_REQUEST)
+        if (appService.isAppExists(name, app.title!!))
             return ResponseEntity("This app already exists", HttpStatus.CONFLICT)
         val filename = FileUtils.addFile(name, app.file!!)
         val repo = repoService.findByName(name)
         appService.save(
             AppEntity(
-                title = app.title,
+                title = app.title!!,
                 description = app.description ?: "",
                 appReview = app.appReview,
                 url = filename,
@@ -91,7 +92,8 @@ class AppRouting(
     ): ResponseEntity<String> {
         if (authService.getUserByToken(bearer.substring(7, bearer.length))==null)
             return ResponseEntity(HttpStatus.UNAUTHORIZED)
-        val a = appService.getApp(app.title, name) ?: return ResponseEntity(
+        if(app.title == null) return ResponseEntity("No app name", HttpStatus.BAD_REQUEST)
+        val a = appService.getApp(app.title!!, name) ?: return ResponseEntity(
             "This app doesn't exist",
             HttpStatus.BAD_REQUEST
         )
@@ -130,7 +132,8 @@ class AppRouting(
             return ResponseEntity(HttpStatus.UNAUTHORIZED)
         val a =
             appService.getApp(appName, repo) ?: return ResponseEntity("This app doesn't exist", HttpStatus.BAD_REQUEST)
-        if (appService.isAppExists(app.title, repo)) return ResponseEntity(
+
+        if (app.title !=null && appService.isAppExists(app.title!!, repo)) return ResponseEntity(
             "Edited app name already exists",
             HttpStatus.CONFLICT
         )

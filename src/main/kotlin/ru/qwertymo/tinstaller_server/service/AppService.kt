@@ -1,5 +1,7 @@
 package ru.qwertymo.tinstaller_server.service
 
+import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Service
 import ru.qwertymo.tinstaller_server.entitiy.AppEntity
 import ru.qwertymo.tinstaller_server.model.request.AppRequest
@@ -34,7 +36,7 @@ class AppService(private var appRepository: AppRepository){
 
     fun updateApp(name: String, request: AppRequest, repo: String){
         val app = appRepository.findAll().find { it.repo?.name == repo && it.title == name } ?: return
-        app.title = request.title
+        if(request.title!=null) app.title = request.title!!
         if(request.file!=null){
             FileUtils.removeFile(repo, app.url)
             app.url = FileUtils.addFile(repo, request.file!!)
