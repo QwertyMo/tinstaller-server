@@ -1,5 +1,8 @@
 package ru.qwertymo.tinstaller_server.utils
 
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import org.springframework.boot.CommandLineRunner
 import org.springframework.stereotype.Service
 import ru.qwertymo.tinstaller_server.service.AppService
@@ -19,6 +22,5 @@ class InitiateUtils(
     @Throws(Exception::class)
     override fun run(vararg args: String) {
         if(!authService.isUserExist("admin"))authService.registerUser("admin","password")
-
     }
 }

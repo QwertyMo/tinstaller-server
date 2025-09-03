@@ -1,5 +1,7 @@
 package ru.qwertymo.tinstaller_server.service
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.KotlinModule
 import jakarta.transaction.Transactional
 import kotlinx.coroutines.coroutineScope
 import org.springframework.scheduling.annotation.Async
@@ -7,6 +9,12 @@ import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile
 import ru.qwertymo.tinstaller_server.entitiy.AppEntity
 import ru.qwertymo.tinstaller_server.entitiy.RepoEntity
+import ru.qwertymo.tinstaller_server.exeption.WrongAppLinkingException
+import ru.qwertymo.tinstaller_server.model.backup.BackupApp
+import ru.qwertymo.tinstaller_server.model.backup.BackupPackage
+import ru.qwertymo.tinstaller_server.model.backup.BackupRepo
+import ru.qwertymo.tinstaller_server.model.backup.BackupRepoApp
+import ru.qwertymo.tinstaller_server.model.backup.BackupVersion
 import ru.qwertymo.tinstaller_server.model.zip.AppZipped
 import ru.qwertymo.tinstaller_server.utils.FileUtils
 import ru.qwertymo.tinstaller_server.utils.FileUtils.Companion
@@ -100,6 +108,88 @@ class ZippedUtils(
                 appReview = it.review,
                 repo = repos
             ))
+        }
+    }
+
+    suspend fun saveAllToZip(){
+        val objectMapper = ObjectMapper().registerModule(KotlinModule.Builder().build())
+        val uuid = UUID.randomUUID()
+        val currDate = System.currentTimeMillis()
+        File("${dir}/backup").let { if (!it.exists()) it.mkdirs() }
+        val zip = File("${dir}/backup/$uuid.zip")
+        val apps: MutableList<BackupApp> = mutableListOf()
+        println(appService.getAll().size)
+        appService.getAll().forEach { app ->
+            val versionUUID = UUID.randomUUID()
+            val appUUID = UUID.randomUUID()
+            apps.add(
+                BackupApp(
+                    uuid = appUUID.toString(),
+                    title = app.title,
+                    description = app.description,
+                    category = listOf(app.category),
+                    reviewURL = app.appReview ?: "",
+                    versions = listOf(
+                        BackupVersion(
+                            uuid = versionUUID.toString(),
+                            version = "1.0.0",
+                            date = currDate,
+                            fileUUID = app.url,
+                            description = "",
+                            exception = "apk"
+                        )
+                    ),
+                    iconUUID = ""
+                )
+            )
+        }
+        val repos: MutableList<BackupRepo> = mutableListOf()
+        repoService.getAll().forEach { repo ->
+            val backupRepoApps: MutableList<BackupRepoApp> = mutableListOf()
+            repo.apps.forEachIndexed { index, app ->
+                backupRepoApps.add(
+                    BackupRepoApp(
+                        uuid = apps.find { it.title == app.title }?.versions!!.get(0).uuid ?: throw WrongAppLinkingException(),
+                        version = "1.0.0",
+                        sortId = index
+                    )
+                )
+            }
+            repos.add(
+                BackupRepo(
+                    uuid = UUID.randomUUID().toString(),
+                    name = repo.name,
+                    apps = backupRepoApps,
+                    sorting = "index"
+                )
+            )
+        }
+        val backupMetadata = BackupPackage(
+            uuid = uuid.toString(),
+            date = currDate,
+            backupApps = apps,
+            backupRepos = repos
+        )
+        println(objectMapper.writeValueAsString(backupMetadata))
+        ZipOutputStream(FileOutputStream(zip)).use { out ->
+            repos.forEach { repo ->
+                repo.apps.forEach { app ->
+                    val appData = apps.find { it.versions[0].uuid == app.uuid }?: throw WrongAppLinkingException()
+                    appData.versions.forEach { version ->
+                        val apk = File("$dir/apps/${repo.name}/${version.fileUUID}")
+                        FileInputStream(apk).use { input ->
+                            val zipEntry = ZipEntry("apps/${version.fileUUID}")
+                            out.putNextEntry(zipEntry)
+                            input.copyTo(out)
+                            out.closeEntry()
+                        }
+                    }
+                }
+            }
+            val meta = ZipEntry("metadata.json")
+            out.putNextEntry(meta)
+            objectMapper.writeValueAsBytes(backupMetadata).inputStream().copyTo(out)
+            out.closeEntry()
         }
     }
 
